@@ -1,13 +1,18 @@
 import { useState } from 'react'
+import HomePage from "./Components/HomePage"
+import Login from "./Components/Login"
+import SignUp from "./Components/SignUp"
 
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [page, setPage] = useState<"home" | "signup" | "login">("home");
 
   return (
-    <>
-      <p>hello world</p>
-    </>
+    <div className='h-full'>
+      {page === "home" && <HomePage setPage={setPage} />}
+      {page === "signup" && <SignUp setPage={setPage} />}
+      {page === "login" && <Login setPage={setPage} />}
+    </div>
   )
 }
 
