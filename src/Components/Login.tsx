@@ -5,6 +5,39 @@ interface LoginPageProps {
 }
 
 function Login({setPage}: LoginPageProps) {
+  
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleLogin = async () => {
+    const requestOptions = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: username,
+        password: password,
+      }),
+    };
+
+    try {
+      const response = await fetch("/api/login", requestOptions);
+
+      if (!response.ok) {
+        throw new Error(`Ошибка: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(data);
+      // setUsers(data);
+    } catch (err: any) {
+      // setError(err.message);
+      console.error(err);
+    } finally {
+      // setLoading(false);
+    }
+  };
 
   return (
     <div className='bg-white h-full flex items-center justify-center'>
@@ -24,6 +57,8 @@ function Login({setPage}: LoginPageProps) {
           </svg>
           <input
             type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)} 
             required
             placeholder="Username"
             pattern="[A-Za-z][A-Za-z0-9\_]*"
@@ -52,6 +87,8 @@ function Login({setPage}: LoginPageProps) {
           </svg>
           <input
             type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
             placeholder="Password"
             minLength={8}
@@ -71,7 +108,7 @@ function Login({setPage}: LoginPageProps) {
 
         <div className='mb-5 mt-3'>
           <button onClick={() => setPage("home")} type="button" className="btn btn-outline btn-error">Back</button>
-          <button type="button" className="btn btn-accent float-end">Login</button>
+          <button onClick={handleLogin} type="button" className="btn btn-accent float-end">Login</button>
         </div>
       </form>
     </div>
