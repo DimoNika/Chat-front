@@ -1,13 +1,15 @@
 import { useState } from 'react'
 
 interface SignUpPageProps {
-  setPage: (page: "home" | "signup" | "login") => void;
+  setPage: (page: "home" | "signup" | "login" | "chat") => void;
+
 }
 
 function SignUp({ setPage }: SignUpPageProps) {
   const [username, setUsername] = useState("");
   const [password1, setPassword1] = useState("");
   const [password2, setPassword2] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
  const handleSignUp = async () => {
     const requestOptions = {
@@ -24,16 +26,21 @@ function SignUp({ setPage }: SignUpPageProps) {
 
     try {
       const response = await fetch("/api/signup", requestOptions);
+      
+      const data = await response.json();
+      console.log(data)
 
       if (!response.ok) {
-        console.log(await response.json())
-        throw new Error(`Ошибка: ${response.status}`);
+
+        setErrorMsg(data.detail)
+        throw new Error(`Error: ${response.status}`);
+      } else {
+        setErrorMsg("")
       }
 
-      const data = await response.json();
       console.log(data);
       localStorage.setItem("access_token", data.access_token);
-      // setUsers(data);
+      
     } catch (err: any) {
       // setError(err.message);
       console.error(err);
@@ -51,6 +58,7 @@ function SignUp({ setPage }: SignUpPageProps) {
 
       {/* Sign Up label */}
       <p className="text-2xl m-3">Sign Up</p>
+      <p className='text-red-600 text-xs my-1'>{errorMsg}</p>
 
       {/* Username input */}
       <label className="input input-accent validator w-full">

@@ -1,13 +1,15 @@
 import { useState } from 'react'
 
 interface LoginPageProps {
-  setPage: (page: "home" | "signup" | "login") => void;
+  setPage: (page: "home" | "signup" | "login" | "chat") => void;
+
 }
 
 function Login({setPage}: LoginPageProps) {
   
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleLogin = async () => {
     const requestOptions = {
@@ -24,13 +26,20 @@ function Login({setPage}: LoginPageProps) {
     try {
       const response = await fetch("/api/login", requestOptions);
 
+      const data = await response.json();
+      console.log(data)
+
       if (!response.ok) {
+        
+        setErrorMsg(data.detail)
         throw new Error(`Ошибка: ${response.status}`);
+      } else {
+        setErrorMsg("")
+        
       }
 
-      const data = await response.json();
-      console.log(data);
-      // setUsers(data);
+      localStorage.setItem("access_token", data.access_token);
+
     } catch (err: any) {
       // setError(err.message);
       console.error(err);
@@ -46,9 +55,10 @@ function Login({setPage}: LoginPageProps) {
 
         {/* Login label */}
         <p className='text-2xl m-3'>Login</p>
+        <p className='text-red-600 text-xs my-1'>{errorMsg}</p>
 
         {/* Start of Username input */}
-        <label className="input input-accent validator w-full">
+        <label className="input input-accent w-full my-3">
           <svg className="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <g strokeLinejoin="round" strokeLinecap="round" strokeWidth="2.5" fill="none" stroke="currentColor">
               <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
@@ -61,21 +71,16 @@ function Login({setPage}: LoginPageProps) {
             onChange={(e) => setUsername(e.target.value)} 
             required
             placeholder="Username"
-            pattern="[A-Za-z][A-Za-z0-9\_]*"
             minLength={4}
             maxLength={20}
-            title="Only letters, numbers or dash"
             className=''
           />
         </label>
-        <p className="validator-hint mb-1.5">
-          Must be 4 to 20 characters
-          <br />containing only letters, numbers or underscore.
-        </p>
+
         {/* End of Username input*/}
 
         {/* Start of Password input */}
-        <label className="input input-accent validator ">
+        <label className="input input-accent my-3">
           <svg className="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <g strokeLinejoin="round" strokeLinecap="round" strokeWidth="2.5"fill="none" stroke="currentColor"
             >
@@ -91,16 +96,9 @@ function Login({setPage}: LoginPageProps) {
             onChange={(e) => setPassword(e.target.value)}
             required
             placeholder="Password"
-            minLength={8}
-            maxLength={24}
-            pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,24}"
-            title="Must be more than 8 characters, including number, lowercase letter, uppercase letter"
+            
           />
         </label>
-        <p className="validator-hint ">
-          Must be more than 8 characters, including
-          <br />At least one number <br />At least one lowercase letter <br />At least one uppercase letter
-        </p>
         {/* End of Password input */}
 
         {/* "dont have accout?" label */}
