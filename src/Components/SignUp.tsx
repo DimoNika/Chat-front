@@ -2,16 +2,18 @@ import { useState } from 'react'
 
 interface SignUpPageProps {
   setPage: (page: "home" | "signup" | "login" | "chat") => void;
-
+  auth: () => void;
 }
 
-function SignUp({ setPage }: SignUpPageProps) {
+function SignUp({ setPage, auth }: SignUpPageProps) {
   const [username, setUsername] = useState("");
   const [password1, setPassword1] = useState("");
   const [password2, setPassword2] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
- const handleSignUp = async () => {
+ const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     const requestOptions = {
       method: "POST",
       headers: {
@@ -36,6 +38,7 @@ function SignUp({ setPage }: SignUpPageProps) {
         throw new Error(`Error: ${response.status}`);
       } else {
         setErrorMsg("")
+        auth()
       }
 
       console.log(data);

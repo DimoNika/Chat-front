@@ -2,10 +2,10 @@ import { useState } from 'react'
 
 interface LoginPageProps {
   setPage: (page: "home" | "signup" | "login" | "chat") => void;
-
+  auth: () => void;
 }
 
-function Login({setPage}: LoginPageProps) {
+function Login({setPage, auth}: LoginPageProps) {
   
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -39,6 +39,7 @@ function Login({setPage}: LoginPageProps) {
       }
 
       localStorage.setItem("access_token", data.access_token);
+      auth()
 
     } catch (err: any) {
       // setError(err.message);
