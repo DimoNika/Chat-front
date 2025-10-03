@@ -3,6 +3,7 @@ import HomePage from "./Components/HomePage"
 import Login from "./Components/Login"
 import SignUp from "./Components/SignUp"
 import Chat from "./Components/Chat"
+import ChatInterface from "./Components/ChatСopy"
 import { apiFetch } from "./api"
 
 
@@ -45,7 +46,7 @@ function App() {
       {page === "home" && <HomePage setPage={setPage} />}
       {page === "signup" && <SignUp setPage={setPage} auth={auth}/>}
       {page === "login" && <Login setPage={setPage} auth={auth}/>}
-      {page === "chat" && <Chat/>}
+      {page === "chat" && <ChatInterface/>}
     </div>
   )
 }
