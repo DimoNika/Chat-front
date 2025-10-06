@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import HomePage from "./Components/HomePage"
 import Login from "./Components/Login"
 import SignUp from "./Components/SignUp"
 import Chat from "./Components/Chat"
-import ChatInterface from "./Components/ChatСopy"
+import ChatInterface from "./Components/ChatCopy"
 import { apiFetch } from "./api"
 
 
@@ -37,8 +37,9 @@ function App() {
       console.error(err);
     };
   }
-
-  auth()
+  useEffect(() => {
+    auth()
+  }, []);
 
   return (
     <div className='h-full'>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { apiFetch } from "../api";
 
 // ChatInterface.tsx
 // Single-file React + TypeScript component that demonstrates:
@@ -18,7 +19,6 @@ type Chat = {
   id: string;
   title: string;
   lastMessage: string;
-  avatar?: string;
   unread?: number;
   messages: Message[];
 };
@@ -201,7 +201,9 @@ const sampleChats: Chat[] = [
 export default function ChatInterface(): React.JSX.Element {
   const [chats, setChats] = useState<Chat[]>(sampleChats);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-  const [inputValue, setInputValue] = useState("");
+  const [inputMessage, setMessage] = useState("");
+  const [inputFindUsername, setFindUsername] = useState("");
+  const [showUserNotFoundWarning, setUserNotFoundWarning] = useState<boolean>(false);
 
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
 
@@ -223,17 +225,58 @@ export default function ChatInterface(): React.JSX.Element {
   }
 
   function sendMessage() {
-    if (!selectedChatId || !inputValue.trim()) return;
+    if (!selectedChatId || !inputMessage.trim()) return;
     const newMsg: Message = {
       id: Date.now().toString(),
       fromMe: true,
-      text: inputValue.trim(),
+      text: inputMessage.trim(),
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
     setChats((prev) =>
       prev.map((c) => (c.id === selectedChatId ? { ...c, messages: [...c.messages, newMsg], lastMessage: newMsg.text } : c))
     );
-    setInputValue("");
+    setMessage("");
+  }
+
+  async function findUser() {
+    if (!inputFindUsername.trim()) return;
+    const requestOptions = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: inputFindUsername,
+      }),      
+    }
+
+    const response = await apiFetch("/api/find-user", requestOptions);
+    if (!response.ok) {
+      setUserNotFoundWarning(true)
+    } else {
+      const data = await response.json()
+      setUserNotFoundWarning(false)
+      const modal = document.getElementById('find_new_user') as HTMLDialogElement | null;
+      modal?.close()
+
+      const newСhat: Chat = {
+        id: data.user_id,
+        lastMessage: "",
+        messages: [],
+        title: data.username,
+        unread: 0
+      }
+
+      setChats((prev) => [newСhat, ...prev]);
+      console.log(newСhat)
+
+    }
+    
+    // const data = response.json()
+    // console.log(data, "aboba")
+    // console.log(JSON.stringify(response))
+
+    
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) {
@@ -242,6 +285,32 @@ export default function ChatInterface(): React.JSX.Element {
       sendMessage();
     }
   }
+
+  // Create websocket connection
+  useEffect(() => {
+    const socket = new WebSocket("/api/ws/chat");
+
+  socket.onopen = () => {
+    socket.send(JSON.stringify({access_token: localStorage.getItem("access_token")}));
+  };
+
+  // Когда приходит сообщение от сервера
+  socket.onmessage = (event) => {
+    console.log("Сообщение от сервера:", JSON.parse(event.data));
+  };
+
+  // Когда соединение закрыто
+  socket.onclose = () => {
+    console.log("Соединение закрыто ❌");
+  };
+
+  // Когда ошибка
+  socket.onerror = (error) => {
+    console.error("Ошибка WS:", error);
+  };
+  }, []);
+
+  
 
   return (
     <div className="h-screen flex bg-base-100">
@@ -253,9 +322,17 @@ export default function ChatInterface(): React.JSX.Element {
   {/* Заголовок */}
   <div className="flex items-center justify-between p-4 border-b border-base-300">
     <h2 className="text-lg font-semibold">Dimonika1's chats</h2>
-    <button className="btn btn-success btn-dash btn-sm">
+    {/* Open the modal using document.getElementById('ID').showModal() method */}
+    <button className="btn btn-success btn-dash btn-sm"
+      onClick={() => {
+      const modal = document.getElementById('find_new_user') as HTMLDialogElement | null;
+      if (modal) {
+        modal.showModal();
+      }}}
+      >
       <span className="text-black">New</span>
     </button>
+    
   </div>
 
   {/* Список чатов */}
@@ -268,7 +345,7 @@ export default function ChatInterface(): React.JSX.Element {
       >
         <div className="ms-1 truncate">
           <p className="font-medium">{chat.title}</p>
-          <p className="w-full block">{chat.lastMessage}</p>
+          {chat.lastMessage ? <p className="w-full block">{chat.lastMessage}</p> : <p className="w-full block text-gray-600 underline">No messages...</p>}
         </div>
       </button>
     ))}
@@ -335,8 +412,8 @@ export default function ChatInterface(): React.JSX.Element {
               <input  
                   placeholder="Type..."
                   className="w-full p-2 border rounded"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
+                  value={inputMessage}
+                  onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={onKeyDown}
                   
               />
@@ -360,6 +437,37 @@ export default function ChatInterface(): React.JSX.Element {
           </div>
         )}
       </main>
+
+      {/* Find new user modal */}
+      <dialog id="find_new_user" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Find new chat 
+            <span className={`float-end text-red-600 text-md font-normal
+              ${showUserNotFoundWarning ? "" : "hidden"}`}>User not found</span>
+            </h3>
+          <p className="py-4">Enter username:</p>
+          {/* <input type="text" /> */}
+          <div>
+          <input  
+                  placeholder="Username..."
+                  className="w-1/2 p-2 border rounded"
+                  value={inputFindUsername}
+                  onChange={(e) => setFindUsername(e.target.value)}
+                  onKeyDown={onKeyDown}
+                  
+              />
+              {/* <button className="btn float-end">Find</button> */}
+              <button className="btn btn-outline btn-success float-end"
+              onClick={() => {
+                findUser()
+              }}
+              >Find</button>
+              </div>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
     </div>
   );
 }
