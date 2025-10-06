@@ -9,14 +9,15 @@ import { apiFetch } from "../api";
 // - Uses Tailwind + daisyUI classes
 
 type Message = {
-  id: string;
+  id: number;
   fromMe: boolean;
   sender_id: number;
   text: string;
   time: string; // ISO or formatted
   isDeleted: boolean;
   editedAt: string;
-  receiver_id: number
+  receiver_id: number,
+  sender_username: string,
 };
 
 type Chat = {
@@ -100,7 +101,7 @@ export default function ChatInterface(): React.JSX.Element {
       const newChat: Chat = {
         id: data.user_id,
         lastMessage: {
-          id: "empty",
+          id: 0,
           fromMe: false,
           text: "",
           time: "",
@@ -108,6 +109,7 @@ export default function ChatInterface(): React.JSX.Element {
           isDeleted: false,
           editedAt: "empty",
           receiver_id: 0,
+          sender_username: ''
         },
         messages: [],
         title: data.username,
@@ -159,6 +161,7 @@ export default function ChatInterface(): React.JSX.Element {
       text: data.message_obj.text,
       time: data.message_obj.sent_at,
       receiver_id: data.receiver_id,
+      sender_username: data.sender_username
     };
     console.log(newMessage)
 
@@ -167,8 +170,11 @@ export default function ChatInterface(): React.JSX.Element {
 
         const chatIndex = prevChats.findIndex(c => c.id === newMessage.receiver_id);
         console.log(prevChats, "prevChats"); // вот здесь актуальные чаты
+        console.log(chatIndex, "chat indesxxx"); // вот здесь актуальные чаты
   
-        if (chatIndex === -1) return prevChats;
+        if (chatIndex === -1) {
+
+        };
   
         const chat = prevChats[chatIndex];
         const updatedChat: Chat = {
@@ -182,7 +188,17 @@ export default function ChatInterface(): React.JSX.Element {
         const chatIndex = prevChats.findIndex(c => c.id === newMessage.sender_id);
         console.log(prevChats, "prevChats"); // вот здесь актуальные чаты
   
-        if (chatIndex === -1) return prevChats;
+        if (chatIndex === -1) {
+            const newChat: Chat = {
+            id: newMessage.sender_id,
+            lastMessage: newMessage,
+            messages: [newMessage],
+            title: newMessage.sender_username,
+            unread: newMessage.fromMe ? 0 : 1
+          }
+          console.log(newChat, "NEW CHAT IN HERE")
+          return [newChat, ...prevChats]
+        };
   
         const chat = prevChats[chatIndex];
         const updatedChat: Chat = {
