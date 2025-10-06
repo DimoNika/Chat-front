@@ -11,199 +11,32 @@ import { apiFetch } from "../api";
 type Message = {
   id: string;
   fromMe: boolean;
+  sender_id: number;
   text: string;
   time: string; // ISO or formatted
+  isDeleted: boolean;
+  editedAt: string;
+  receiver_id: number
 };
 
 type Chat = {
-  id: string;
+  id: number;
   title: string;
-  lastMessage: string;
+  lastMessage: Message;
   unread?: number;
   messages: Message[];
 };
 
-const sampleChats: Chat[] = [
-  {
-    id: "1",
-    title: "Dreamay",
-    
-    lastMessage: "Окей, договорились!",
-    unread: 2,
-    messages: [
-      { id: "m1", fromMe: false, text: "Привет! Ты тут?", time: "10:01" },
-      { id: "m2", fromMe: true, text: "Да, работаю над задачей", time: "10:03" },
-    ],
-  },
-  {
-    id: "2",
-    title: "Klaivo",
-    
-    lastMessage: "Добавил правки в компонент",
-    unread: 0,
-    messages: [
-      { id: "m1", fromMe: false, text: "Проверь последний PR", time: "09:20" },
-    ],
-  },
-  {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-    {
-    id: "3",
-    title: "Yto4ka",
-    
-    lastMessage: "Спасибо!",
-    unread: 1,
-    messages: [
-      { id: "m1", fromMe: false, text: "Отправлю завтра", time: "08:10" },
-    ],
-  },
-  
-];
+
 
 export default function ChatInterface(): React.JSX.Element {
-  const [chats, setChats] = useState<Chat[]>(sampleChats);
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [selectedChatId, setSelectedChatId] = useState<number | null>(null);
   const [inputMessage, setMessage] = useState("");
   const [inputFindUsername, setFindUsername] = useState("");
   const [showUserNotFoundWarning, setUserNotFoundWarning] = useState<boolean>(false);
+
+  const socketRef = useRef<WebSocket | null>(null);
 
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
 
@@ -214,7 +47,7 @@ export default function ChatInterface(): React.JSX.Element {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [selectedChatId, chats]);
 
-  function openChat(id: string) {
+  function openChat(id: number) {
     setSelectedChatId(id);
     // mark unread as read
     setChats((prev) => prev.map((c) => (c.id === id ? { ...c, unread: 0 } : c)));
@@ -225,16 +58,21 @@ export default function ChatInterface(): React.JSX.Element {
   }
 
   function sendMessage() {
-    if (!selectedChatId || !inputMessage.trim()) return;
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      fromMe: true,
-      text: inputMessage.trim(),
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-    setChats((prev) =>
-      prev.map((c) => (c.id === selectedChatId ? { ...c, messages: [...c.messages, newMsg], lastMessage: newMsg.text } : c))
-    );
+    if (!inputMessage.trim()) return;
+    console.log({
+          selectedUserId: selectedChatId,
+          message: inputMessage
+        })
+    if (socketRef.current) {
+      socketRef.current.send(JSON.stringify(
+        {
+          selectedUserId: selectedChatId,
+          message: inputMessage
+        }
+      ))
+
+    }
+
     setMessage("");
   }
 
@@ -259,16 +97,25 @@ export default function ChatInterface(): React.JSX.Element {
       const modal = document.getElementById('find_new_user') as HTMLDialogElement | null;
       modal?.close()
 
-      const newСhat: Chat = {
+      const newChat: Chat = {
         id: data.user_id,
-        lastMessage: "",
+        lastMessage: {
+          id: "empty",
+          fromMe: false,
+          text: "",
+          time: "",
+          sender_id: 0,
+          isDeleted: false,
+          editedAt: "empty",
+          receiver_id: 0,
+        },
         messages: [],
         title: data.username,
         unread: 0
       }
 
-      setChats((prev) => [newСhat, ...prev]);
-      console.log(newСhat)
+      setChats((prev) => [newChat, ...prev]);
+      console.log(newChat)
 
     }
     
@@ -288,26 +135,91 @@ export default function ChatInterface(): React.JSX.Element {
 
   // Create websocket connection
   useEffect(() => {
+    
+
     const socket = new WebSocket("/api/ws/chat");
+    socketRef.current = socket;
 
-  socket.onopen = () => {
-    socket.send(JSON.stringify({access_token: localStorage.getItem("access_token")}));
-  };
+    socket.onopen = () => {
+      socket.send(JSON.stringify({ access_token: localStorage.getItem("access_token") }));
+      console.log("Initiated websocket connection");
+    };
 
-  // Когда приходит сообщение от сервера
-  socket.onmessage = (event) => {
-    console.log("Сообщение от сервера:", JSON.parse(event.data));
-  };
+    socket.onmessage = (event) => {
+    console.log(chats, "chats")
+    const data = JSON.parse(event.data);
+    
+    console.log(data, "new message")
+    const newMessage: Message = {
+      id: data.message_obj.id,
+      editedAt: data.message_obj.edited_at,
+      fromMe: data.is_own_message,
+      isDeleted: false,
+      sender_id: data.message_obj.sender_id,
+      text: data.message_obj.text,
+      time: data.message_obj.sent_at,
+      receiver_id: data.receiver_id,
+    };
+    console.log(newMessage)
 
-  // Когда соединение закрыто
-  socket.onclose = () => {
-    console.log("Соединение закрыто ❌");
-  };
+    setChats(prevChats => {
+      if (newMessage.fromMe) {
 
-  // Когда ошибка
-  socket.onerror = (error) => {
-    console.error("Ошибка WS:", error);
-  };
+        const chatIndex = prevChats.findIndex(c => c.id === newMessage.receiver_id);
+        console.log(prevChats, "prevChats"); // вот здесь актуальные чаты
+  
+        if (chatIndex === -1) return prevChats;
+  
+        const chat = prevChats[chatIndex];
+        const updatedChat: Chat = {
+          ...chat,
+          messages: [...chat.messages, newMessage],
+          lastMessage: newMessage,
+        };
+  
+        return [updatedChat, ...prevChats.filter((_, i) => i !== chatIndex)];
+      } else {
+        const chatIndex = prevChats.findIndex(c => c.id === newMessage.sender_id);
+        console.log(prevChats, "prevChats"); // вот здесь актуальные чаты
+  
+        if (chatIndex === -1) return prevChats;
+  
+        const chat = prevChats[chatIndex];
+        const updatedChat: Chat = {
+          ...chat,
+          messages: [...chat.messages, newMessage],
+          lastMessage: newMessage,
+        };
+  
+        return [updatedChat, ...prevChats.filter((_, i) => i !== chatIndex)];
+      }
+    });
+
+    };
+
+    console.log(chats)
+
+    socket.onclose = () => {
+      console.log("Соединение закрыто ❌");
+    };
+
+    socket.onerror = (error) => {
+      console.error("Ошибка WS:", error);
+    };
+
+    // Загрузка списка чатов
+    (async () => {
+      const response = await apiFetch("/api/chats-list");
+      const data = await response.json();
+      const chats: Chat[] = data.chats_list;
+      setChats(chats);
+      console.log(chats);
+      
+    })();
+
+    return () => {
+      socket.close();
+    };
   }, []);
 
   
@@ -345,7 +257,7 @@ export default function ChatInterface(): React.JSX.Element {
       >
         <div className="ms-1 truncate">
           <p className="font-medium">{chat.title}</p>
-          {chat.lastMessage ? <p className="w-full block">{chat.lastMessage}</p> : <p className="w-full block text-gray-600 underline">No messages...</p>}
+          {chat.lastMessage.text != "" ? <p className="w-full block">{chat.lastMessage.text}</p> : <p className="w-full block text-gray-600 underline">No messages...</p>}
         </div>
       </button>
     ))}
@@ -354,7 +266,7 @@ export default function ChatInterface(): React.JSX.Element {
 
       {/* Main area */}
       <main 
-        className={`overflow-auto transition-all duration-200 border-e border-base-300 flex flex-1 flex-col`}
+        className={`overflow-hidden h-screen transition-all duration-200 border-e border-base-300 flex flex-1 flex-col`}
       >
         {/* Topbar (hidden when no chat selected on small screens) */}
         <header className="border-b h-[65px] border-base-300 p-4 flex items-center justify-between">
@@ -386,7 +298,7 @@ export default function ChatInterface(): React.JSX.Element {
           </div>
         ) : (
           // Chat window
-          <div className="flex-1 flex flex-col">
+          <div className="overflow-hidden flex-1 flex flex-col">
             <div className="flex-1 overflow-auto p-4">
               <div className="space-y-4 max-w-3xl mx-auto">
                 {selectedChat.messages.map((m) => (
