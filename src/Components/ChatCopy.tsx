@@ -41,6 +41,8 @@ export default function ChatInterface(): React.JSX.Element {
   const [inputMessageEdit, setMessageEdit] = useState<string>("");
   const [inputMessageEditID, setMessageEditID] = useState<number>(0);
 
+  const [thisUserUsername, setThisUserUsername] = useState<string>("");
+
   const socketRef = useRef<WebSocket | null>(null);
 
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
@@ -121,6 +123,30 @@ export default function ChatInterface(): React.JSX.Element {
     modalEditMessage?.close()
     // setMessage("");
   }
+
+  function deleteMessage(messageID: number) {
+    console.log({
+          type: "delete_message",
+          messageID: messageID,
+          selectedUserId: selectedChatId,
+          // message: inputMessageEdit,
+
+        })
+    if (socketRef.current) {
+      socketRef.current.send(JSON.stringify(
+        {
+          type: "delete_message",
+          messageID: messageID,
+          selectedUserId: selectedChatId,
+          // message: inputMessageEdit,
+        }
+      ))
+
+    }
+    
+    
+  }
+
 
   async function findUser() {
     if (!inputFindUsername.trim()) return;
@@ -264,31 +290,63 @@ export default function ChatInterface(): React.JSX.Element {
 
     // IF MESSAGE TYPE EDIT_MESSAGE (edit message)
     } else if (data.type == "edit_message") {
-      console.log(data, "TIME TO EDIT MESSAGE");
+        console.log(data, "TIME TO EDIT MESSAGE");
 
-      // chats.forEach(chat => {
-      //   chat.messages.forEach(msg => {
-      //     if (msg.id == data.id) {
-      //       msg.text = data.text
-      //       if (chat.messages[chat.messages.length - 1] == msg) {
-      //         chat.lastMessage.text = data.text
-      //       }
-      //     }
-      //   });
+        const updateMessage = (messageID: number, newText: string) => {
+          setChats(prevChats =>
+            prevChats.map(chat => {
+              const updatedMessages = chat.messages.map(msg =>
+                msg.id === messageID
+                  ? { ...msg, text: newText, editedAt: new Date().toISOString() }
+                  : msg
+          );
+              const updatedLastMessage = updatedMessages[updatedMessages.length - 1];
+
+              return {
+                ...chat,
+                messages: updatedMessages,
+                lastMessage: updatedLastMessage,
+              };
+            })
+          );
+        };
+
+      
+      updateMessage(data.id, data.text);
+      
+    } else if (data.type == "delete_message") {
+      const deleteMessage = (messageID: number) => {
         
-      // });
-
-      // Пример данных
-     const updateMessage = (messageID: number, newText: string) => {
   setChats(prevChats =>
     prevChats.map(chat => {
-      const updatedMessages = chat.messages.map(msg =>
-        msg.id === messageID
-          ? { ...msg, text: newText, editedAt: new Date().toISOString() }
-          : msg
-      );
+      // Проверяем, есть ли это сообщение в текущем чате
+      const messageExists = chat.messages.some(msg => msg.id === messageID);
+      if (!messageExists) return chat;
 
-      const updatedLastMessage = updatedMessages[updatedMessages.length - 1];
+      // Удаляем сообщение
+      const updatedMessages = chat.messages.filter(msg => msg.id !== messageID);
+
+      // Определяем новое lastMessage
+      let updatedLastMessage = chat.lastMessage;
+      if (chat.lastMessage.id === messageID) {
+        // Если удалили последнее сообщение
+        if (updatedMessages.length > 0) {
+          updatedLastMessage = updatedMessages[updatedMessages.length - 1];
+        } else {
+          // Если сообщений вообще не осталось
+          updatedLastMessage = {
+            id: 0,
+            fromMe: false,
+            sender_id: 0,
+            text: "",
+            time: "",
+            isDeleted: true,
+            editedAt: "",
+            receiver_id: 0,
+            sender_username: "",
+          };
+        }
+      }
 
       return {
         ...chat,
@@ -298,14 +356,9 @@ export default function ChatInterface(): React.JSX.Element {
     })
   );
 };
-
-      // Использование
-      updateMessage(data.id, data.text);
-      // selectedChat = selectedChat
-
-
-
-    }};
+    deleteMessage(data.id)
+    }
+  };
 
     console.log(chats)
 
@@ -321,9 +374,11 @@ export default function ChatInterface(): React.JSX.Element {
     (async () => {
       const response = await apiFetch("/api/chats-list");
       const data = await response.json();
+      setThisUserUsername(data.your_username)
+      console.log(data, "FETCH ALL CHATS")
       const chats: Chat[] = data.chats_list;
       setChats(chats);
-      console.log(chats);
+      console.log(chats, "ALL CHATS");
       
     })();
 
@@ -356,7 +411,7 @@ export default function ChatInterface(): React.JSX.Element {
   >
     {/* Заголовок */}
     <div className="flex items-center justify-between p-4 border-b border-base-300">
-      <h2 className="text-lg font-semibold">Dimonika1's chats</h2>
+      <h2 className="text-lg font-semibold"><span className="underline">{thisUserUsername}'s</span> chats</h2>
       {/* Open the modal using document.getElementById('ID').showModal() method */}
       <button className="btn btn-success btn-dash btn-sm"
         onClick={() => {
@@ -378,9 +433,23 @@ export default function ChatInterface(): React.JSX.Element {
           onClick={() => openChat(chat.id)}
           className="w-full text-left rounded-lg hover:bg-base-300 p-2 flex items-center gap-3 border border-blue-400"
         >
-          <div className="ms-1 truncate">
-            <p className="font-medium">{chat.title}</p>
-            {chat.lastMessage.text != "" ? <p className="w-full block">{chat.lastMessage.text}</p> : <p className="w-full block text-gray-600 underline">No messages...</p>}
+          <div className="ms-1 truncate w-full">
+            <p className="">
+              <span className="font-medium">{chat.title}</span>
+              <span className="float-end text-sm">{formatDateTime(chat.lastMessage.time)}</span>
+            </p>
+            
+            {/* {chat.lastMessage.text != "" 
+              ? <p className="w-full block">{chat.lastMessage.text}</p> 
+              : <p className="w-full block text-gray-600 underline">No messages...</p>
+            } */}
+            {chat.lastMessage.text != "" 
+              ? <p className="w-full block">{chat.lastMessage.fromMe
+                ? <span><span className="font-bold">You:</span> {chat.lastMessage.text}</span> 
+                : <span>{chat.lastMessage.text}</span> 
+                }</p> 
+              : <p className="w-full block text-gray-600 underline">No messages...</p>
+            }
           </div>
         </button>
       ))}
@@ -429,22 +498,49 @@ export default function ChatInterface(): React.JSX.Element {
                     
                     <div className="chat-bubble break-words w-fit">
                       {m.text}
-                      <div className="chat-header">
-                        {m.fromMe ? 
-                        <button className="btn btn-ghost btn-xs"
-                        onClick={() => {
-                          const modalEditMessage = document.getElementById('edit_message') as HTMLDialogElement | null;
-                          if (modalEditMessage) {
-                            setMessageEdit(m.text)
-                            setMessageEditID(m.id)
-                            modalEditMessage.showModal();
-                          }
-                        }
+                      
+                      <div className="chat-header mt-1">
+                        {m.fromMe 
+                        ? <>
+                        {/* Delete button */}
+                          <button className="btn btn-ghost btn-xs"
+                          onClick={() => {
+                            
+                            deleteMessage(m.id)
+                          }}
+                          ><span className="text-red-300">delete</span></button>
 
-                        }
-                        ><span className="text-gray-400">edit</span></button>
+
+                          {/* Edit button */}
+                          <button className="btn btn-ghost btn-xs"
+                          onClick={() => {
+                            const modalEditMessage = document.getElementById('edit_message') as HTMLDialogElement | null;
+                            if (modalEditMessage) {
+                              setMessageEdit(m.text)
+                              setMessageEditID(m.id)
+                              
+                              modalEditMessage.showModal();
+                            }
+                          }
+                          
+                          
+                          }
+                          ><span className="text-gray-400">edit</span></button>
+                        
+                        
+                        </>
                          : <></>}
                         <span className={`text-xs text-gray-400 h-fit my-auto ${m.fromMe ? "ms-auto" : ""}`}>{formatDateTime(m.time)}</span>
+                          {m.editedAt 
+                            ? 
+                            <span className="my-auto" title={`Edited at: ${formatDateTime(m.editedAt)}`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-4 text-gray-400">
+                                <path fillRule="evenodd" d="M11.013 2.513a1.75 1.75 0 0 1 2.475 2.474L6.226 12.25a2.751 2.751 0 0 1-.892.596l-2.047.848a.75.75 0 0 1-.98-.98l.848-2.047a2.75 2.75 0 0 1 .596-.892l7.262-7.261Z" clipRule="evenodd" />
+                              </svg>
+                            </span>
+                            : <></>
+                          }
+
                       </div>
                     </div>
                   </div>
