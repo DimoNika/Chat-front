@@ -14,6 +14,7 @@ type Message = {
   sender_id: number;
   text: string;
   time: string; // ISO or formatted
+  
   isDeleted: boolean;
   editedAt: string;
   receiver_id: number,
@@ -37,16 +38,31 @@ export default function ChatInterface(): React.JSX.Element {
   const [inputFindUsername, setFindUsername] = useState("");
   const [showUserNotFoundWarning, setUserNotFoundWarning] = useState<boolean>(false);
 
+  const [inputMessageEdit, setMessageEdit] = useState<string>("");
+  const [inputMessageEditID, setMessageEditID] = useState<number>(0);
+
   const socketRef = useRef<WebSocket | null>(null);
 
   const selectedChat = chats.find((c) => c.id === selectedChatId) ?? null;
 
   // Scroll ref for messages
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  
+  const prevMessagesLengthRef = useRef<number>(0);
+
+  // Скролл только при добавлении новых сообщений
   useEffect(() => {
-    // scroll to bottom when selected chat or messages change
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [selectedChatId, chats]);
+    if (!selectedChat) return;
+
+    const currentLength = selectedChat.messages.length;
+
+    if (currentLength > prevMessagesLengthRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+
+    prevMessagesLengthRef.current = currentLength;
+  }, [selectedChat?.messages]);
+
 
   function openChat(id: number) {
     setSelectedChatId(id);
@@ -61,12 +77,14 @@ export default function ChatInterface(): React.JSX.Element {
   function sendMessage() {
     if (!inputMessage.trim()) return;
     console.log({
+          type: "message",
           selectedUserId: selectedChatId,
           message: inputMessage
         })
     if (socketRef.current) {
       socketRef.current.send(JSON.stringify(
         {
+          type: "message",
           selectedUserId: selectedChatId,
           message: inputMessage
         }
@@ -75,6 +93,33 @@ export default function ChatInterface(): React.JSX.Element {
     }
 
     setMessage("");
+  }
+
+  function editMessage() {
+    if (!inputMessageEdit.trim()) return;
+    const modalEditMessage = document.getElementById('edit_message') as HTMLDialogElement | null;
+    console.log({
+          type: "edit_message",
+          selectedUserId: selectedChatId,
+
+          message: inputMessageEdit,
+          messageID: inputMessageEditID,
+        })
+    if (socketRef.current) {
+      socketRef.current.send(JSON.stringify(
+        {
+          type: "edit_message",
+          selectedUserId: selectedChatId,
+
+          message: inputMessageEdit,
+          messageID: inputMessageEditID,
+        }
+      ))
+
+    }
+    
+    modalEditMessage?.close()
+    // setMessage("");
   }
 
   async function findUser() {
@@ -148,70 +193,119 @@ export default function ChatInterface(): React.JSX.Element {
     };
 
     socket.onmessage = (event) => {
+
     console.log(chats, "chats")
     const data = JSON.parse(event.data);
+
+
+    // IF MESSAGE TYPE MESSAGE  (REGULAR)
+    if (data.type == "message") {
+      
+      console.log(data, "new message")
+      const newMessage: Message = {
+        id: data.message_obj.id,
+        editedAt: data.message_obj.edited_at,
+        fromMe: data.is_own_message,
+        isDeleted: false,
+        sender_id: data.message_obj.sender_id,
+        text: data.message_obj.text,
+        time: data.message_obj.sent_at,
+        receiver_id: data.receiver_id,
+        sender_username: data.sender_username
+      };
+      console.log(newMessage)
+  
+      setChats(prevChats => {
+        if (newMessage.fromMe) {
+  
+          const chatIndex = prevChats.findIndex(c => c.id === newMessage.receiver_id);
+          console.log(prevChats, "prevChats"); // вот здесь актуальные чаты
+          console.log(chatIndex, "chat indesxxx"); // вот здесь актуальные чаты
     
-    console.log(data, "new message")
-    const newMessage: Message = {
-      id: data.message_obj.id,
-      editedAt: data.message_obj.edited_at,
-      fromMe: data.is_own_message,
-      isDeleted: false,
-      sender_id: data.message_obj.sender_id,
-      text: data.message_obj.text,
-      time: data.message_obj.sent_at,
-      receiver_id: data.receiver_id,
-      sender_username: data.sender_username
-    };
-    console.log(newMessage)
-
-    setChats(prevChats => {
-      if (newMessage.fromMe) {
-
-        const chatIndex = prevChats.findIndex(c => c.id === newMessage.receiver_id);
-        console.log(prevChats, "prevChats"); // вот здесь актуальные чаты
-        console.log(chatIndex, "chat indesxxx"); // вот здесь актуальные чаты
+          if (chatIndex === -1) {
   
-        if (chatIndex === -1) {
-
-        };
-  
-        const chat = prevChats[chatIndex];
-        const updatedChat: Chat = {
-          ...chat,
-          messages: [...chat.messages, newMessage],
-          lastMessage: newMessage,
-        };
-  
-        return [updatedChat, ...prevChats.filter((_, i) => i !== chatIndex)];
-      } else {
-        const chatIndex = prevChats.findIndex(c => c.id === newMessage.sender_id);
-        console.log(prevChats, "prevChats"); // вот здесь актуальные чаты
-  
-        if (chatIndex === -1) {
-            const newChat: Chat = {
-            id: newMessage.sender_id,
+          };
+    
+          const chat = prevChats[chatIndex];
+          const updatedChat: Chat = {
+            ...chat,
+            messages: [...chat.messages, newMessage],
             lastMessage: newMessage,
-            messages: [newMessage],
-            title: newMessage.sender_username,
-            unread: newMessage.fromMe ? 0 : 1
-          }
-          console.log(newChat, "NEW CHAT IN HERE")
-          return [newChat, ...prevChats]
-        };
-  
-        const chat = prevChats[chatIndex];
-        const updatedChat: Chat = {
-          ...chat,
-          messages: [...chat.messages, newMessage],
-          lastMessage: newMessage,
-        };
-  
-        return [updatedChat, ...prevChats.filter((_, i) => i !== chatIndex)];
-      }
-    });
+          };
+    
+          return [updatedChat, ...prevChats.filter((_, i) => i !== chatIndex)];
+        } else {
+          const chatIndex = prevChats.findIndex(c => c.id === newMessage.sender_id);
+          console.log(prevChats, "prevChats"); // вот здесь актуальные чаты
+    
+          if (chatIndex === -1) {
+              const newChat: Chat = {
+              id: newMessage.sender_id,
+              lastMessage: newMessage,
+              messages: [newMessage],
+              title: newMessage.sender_username,
+              unread: newMessage.fromMe ? 0 : 1,
+            }
+            console.log(newChat, "NEW CHAT IN HERE")
+            return [newChat, ...prevChats]
+          };
+    
+          const chat = prevChats[chatIndex];
+          const updatedChat: Chat = {
+            ...chat,
+            messages: [...chat.messages, newMessage],
+            lastMessage: newMessage,
+          };
+    
+          return [updatedChat, ...prevChats.filter((_, i) => i !== chatIndex)];
+        }
+      });
 
-    };
+
+    // IF MESSAGE TYPE EDIT_MESSAGE (edit message)
+    } else if (data.type == "edit_message") {
+      console.log(data, "TIME TO EDIT MESSAGE");
+
+      // chats.forEach(chat => {
+      //   chat.messages.forEach(msg => {
+      //     if (msg.id == data.id) {
+      //       msg.text = data.text
+      //       if (chat.messages[chat.messages.length - 1] == msg) {
+      //         chat.lastMessage.text = data.text
+      //       }
+      //     }
+      //   });
+        
+      // });
+
+      // Пример данных
+     const updateMessage = (messageID: number, newText: string) => {
+  setChats(prevChats =>
+    prevChats.map(chat => {
+      const updatedMessages = chat.messages.map(msg =>
+        msg.id === messageID
+          ? { ...msg, text: newText, editedAt: new Date().toISOString() }
+          : msg
+      );
+
+      const updatedLastMessage = updatedMessages[updatedMessages.length - 1];
+
+      return {
+        ...chat,
+        messages: updatedMessages,
+        lastMessage: updatedLastMessage,
+      };
+    })
+  );
+};
+
+      // Использование
+      updateMessage(data.id, data.text);
+      // selectedChat = selectedChat
+
+
+
+    }};
 
     console.log(chats)
 
@@ -237,48 +331,61 @@ export default function ChatInterface(): React.JSX.Element {
       socket.close();
     };
   }, []);
-
   
+  // custom function for formatting time from python to human readable
+  function formatDateTime(pythonTime: string) {
+    const isoStr = pythonTime.replace(" ", "T").slice(0, 23);
+    const isoTime = new Date(isoStr + "Z")
+    
+    
+    const pad = (n: Number) => String(n).padStart(2, "0");
+    return `${pad(isoTime.getHours())}:${pad(isoTime.getMinutes())}`+
+    ` ${pad(isoTime.getDate())}.${pad(isoTime.getMonth()+1)}.${isoTime.getFullYear()}`
+
+  }
+
+  // function to edit message
+
 
   return (
-    <div className="h-screen flex bg-base-100">
-      {/* Sidebar */}
-<aside
-  className={`h-screen flex flex-col transition-all duration-200 border-e border-base-300
-    ${selectedChatId ? "hidden md:flex w-80" : "flex w-full md:w-80"}`}
->
-  {/* Заголовок */}
-  <div className="flex items-center justify-between p-4 border-b border-base-300">
-    <h2 className="text-lg font-semibold">Dimonika1's chats</h2>
-    {/* Open the modal using document.getElementById('ID').showModal() method */}
-    <button className="btn btn-success btn-dash btn-sm"
-      onClick={() => {
-      const modal = document.getElementById('find_new_user') as HTMLDialogElement | null;
-      if (modal) {
-        modal.showModal();
-      }}}
-      >
-      <span className="text-black">New</span>
-    </button>
-    
-  </div>
-
-  {/* Список чатов */}
-  <div className="flex-1 overflow-y-auto space-y-1 py-4 px-2">
-    {chats.map((chat) => (
-      <button
-        key={chat.id}
-        onClick={() => openChat(chat.id)}
-        className="w-full text-left rounded-lg hover:bg-base-300 p-2 flex items-center gap-3 border border-blue-400"
-      >
-        <div className="ms-1 truncate">
-          <p className="font-medium">{chat.title}</p>
-          {chat.lastMessage.text != "" ? <p className="w-full block">{chat.lastMessage.text}</p> : <p className="w-full block text-gray-600 underline">No messages...</p>}
-        </div>
+  <div className="h-screen flex bg-base-100">
+  {/* Sidebar */}
+  <aside
+    className={`h-screen flex flex-col transition-all duration-200 border-e border-base-300
+      ${selectedChatId ? "hidden md:flex w-80" : "flex w-full md:w-80"}`}
+  >
+    {/* Заголовок */}
+    <div className="flex items-center justify-between p-4 border-b border-base-300">
+      <h2 className="text-lg font-semibold">Dimonika1's chats</h2>
+      {/* Open the modal using document.getElementById('ID').showModal() method */}
+      <button className="btn btn-success btn-dash btn-sm"
+        onClick={() => {
+        const modalFindUser = document.getElementById('find_new_user') as HTMLDialogElement | null;
+        if (modalFindUser) {
+          modalFindUser.showModal();
+        }}}
+        >
+        <span className="text-black">New</span>
       </button>
-    ))}
-  </div>
-</aside>
+      
+    </div>
+
+    {/* Список чатов */}
+    <div className="flex-1 overflow-y-auto space-y-1 py-4 px-2">
+      {chats.map((chat) => (
+        <button
+          key={chat.id}
+          onClick={() => openChat(chat.id)}
+          className="w-full text-left rounded-lg hover:bg-base-300 p-2 flex items-center gap-3 border border-blue-400"
+        >
+          <div className="ms-1 truncate">
+            <p className="font-medium">{chat.title}</p>
+            {chat.lastMessage.text != "" ? <p className="w-full block">{chat.lastMessage.text}</p> : <p className="w-full block text-gray-600 underline">No messages...</p>}
+          </div>
+        </button>
+      ))}
+    </div>
+  </aside>
 
       {/* Main area */}
       <main 
@@ -323,7 +430,21 @@ export default function ChatInterface(): React.JSX.Element {
                     <div className="chat-bubble break-words w-fit">
                       {m.text}
                       <div className="chat-header">
-                        <time className={`text-xs text-muted ${m.fromMe ? "ms-auto" : ""}`}>{m.time}</time>
+                        {m.fromMe ? 
+                        <button className="btn btn-ghost btn-xs"
+                        onClick={() => {
+                          const modalEditMessage = document.getElementById('edit_message') as HTMLDialogElement | null;
+                          if (modalEditMessage) {
+                            setMessageEdit(m.text)
+                            setMessageEditID(m.id)
+                            modalEditMessage.showModal();
+                          }
+                        }
+
+                        }
+                        ><span className="text-gray-400">edit</span></button>
+                         : <></>}
+                        <span className={`text-xs text-gray-400 h-fit my-auto ${m.fromMe ? "ms-auto" : ""}`}>{formatDateTime(m.time)}</span>
                       </div>
                     </div>
                   </div>
@@ -347,21 +468,7 @@ export default function ChatInterface(): React.JSX.Element {
               />
               <button className="px-3" onClick={() => sendMessage()}>Send</button>  
           </div>
-            {/* <div className="p-3 border-t border-base-300 bg-base-200">
-              <div className="max-w-3xl mx-auto flex items-end gap-2">
-                <textarea
-                  rows={1}
-                  className="textarea resize-none"
-                  placeholder="Напишите сообщение... (Enter — отправить, Shift+Enter — новая строка)"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={onKeyDown}
-                />
-                <button className="btn" onClick={sendMessage} aria-label="Send">
-                  Отправить
-                </button>
-              </div>
-            </div> */}
+
           </div>
         )}
       </main>
@@ -390,6 +497,59 @@ export default function ChatInterface(): React.JSX.Element {
                 findUser()
               }}
               >Find</button>
+              </div>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
+
+
+
+      {/* Edit Message modal */}
+      <dialog id="edit_message" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Edit message
+            {/* <span className={`float-end text-red-600 text-md font-normal
+              ${showUserNotFoundWarning ? "" : "hidden"}`}>User not found</span> */}
+            </h3>
+          <p className="py-4">Enter username:</p>
+          {/* <input type="text" /> */}
+          <div>
+          {/* <input  
+                  placeholder="Message"
+                  className="w-1/2 p-2 border rounded"
+                  value={inputMessageEdit}
+                  onChange={(e) => setMessageEdit(e.target.value)}
+                  // onKeyDown={onKeyDown}
+                  
+              /> */}
+              <textarea  
+                className="textarea w-full"
+                value={inputMessageEdit}
+                onChange={(e) => setMessageEdit(e.target.value)}
+
+                >
+                
+
+              </textarea>
+              </div>
+              {/* <button className="btn float-end">Find</button> */}
+              <div className="my-3">
+                <button className="btn btn-outline btn-error"
+                onClick={() => {
+                  const modalEditMessage = document.getElementById('edit_message') as HTMLDialogElement | null;
+                  if (modalEditMessage) {
+                    modalEditMessage.close()
+                  }
+                }}
+                >Cancel</button>
+
+                <button className="btn btn-outline btn-success float-end"
+                onClick={() => {
+                  editMessage()
+                }}
+                >Edit</button>
               </div>
         </div>
         <form method="dialog" className="modal-backdrop">
