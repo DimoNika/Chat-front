@@ -10,11 +10,15 @@ import { apiFetch } from "../api";
 
 type Message = {
   id: number;
+  type: string,
   fromMe: boolean;
   sender_id: number;
   text: string;
   time: string; // ISO or formatted
-  
+  file_size?: number,
+  file_name?: string,
+  file_type?: string,
+  file_url?: string,
   isDeleted: boolean;
   editedAt: string;
   receiver_id: number,
@@ -42,6 +46,13 @@ export default function ChatInterface(): React.JSX.Element {
   const [inputMessageEditID, setMessageEditID] = useState<number>(0);
 
   const [thisUserUsername, setThisUserUsername] = useState<string>("");
+  // for files upload
+  const [files, setFiles] = useState<FileList | null>(null);
+  // const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFiles(e.target.files);
+  };
 
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -174,6 +185,7 @@ export default function ChatInterface(): React.JSX.Element {
         lastMessage: {
           id: 0,
           fromMe: false,
+          type: "text",
           text: "",
           time: "",
           sender_id: 0,
@@ -230,6 +242,7 @@ export default function ChatInterface(): React.JSX.Element {
       console.log(data, "new message")
       const newMessage: Message = {
         id: data.message_obj.id,
+        type: data.message_obj.type,
         editedAt: data.message_obj.edited_at,
         fromMe: data.is_own_message,
         isDeleted: false,
@@ -237,7 +250,13 @@ export default function ChatInterface(): React.JSX.Element {
         text: data.message_obj.text,
         time: data.message_obj.sent_at,
         receiver_id: data.receiver_id,
-        sender_username: data.sender_username
+        sender_username: data.sender_username,
+
+        file_name: data.file_name,
+        file_size: data.file_size,
+        file_type: data.file_type,
+        file_url: data.file_url
+
       };
       console.log(newMessage)
   
@@ -338,6 +357,7 @@ export default function ChatInterface(): React.JSX.Element {
             id: 0,
             fromMe: false,
             sender_id: 0,
+            type: "text",
             text: "",
             time: "",
             isDeleted: true,
@@ -386,6 +406,42 @@ export default function ChatInterface(): React.JSX.Element {
       socket.close();
     };
   }, []);
+
+
+  const handleUpload = async () => {
+    if (!files) return;
+    
+
+    const formData = new FormData();
+    Array.from(files).forEach(file => formData.append("files", file));
+    
+    if (selectedChatId !== null) {
+      formData.append("selectedUserId", selectedChatId.toString());
+    }
+
+    const requestOptions = {
+        method: "POST",
+        body: formData
+      }
+      
+
+    try {
+      const response = await apiFetch("/api/upload", requestOptions);
+
+      if (!response.ok) throw new Error("Ошибка загрузки");
+      const data = await response.json();
+      console.log(data)
+
+      
+    } catch (err) {
+      console.error(err);
+    } finally {
+      const modalEditMessage = document.getElementById('attach_files') as HTMLDialogElement | null;
+      if (modalEditMessage) {
+        modalEditMessage.close()
+      }
+    }
+  };
   
   // custom function for formatting time from python to human readable
   function formatDateTime(pythonTime: string) {
@@ -397,6 +453,13 @@ export default function ChatInterface(): React.JSX.Element {
     return `${pad(isoTime.getHours())}:${pad(isoTime.getMinutes())}`+
     ` ${pad(isoTime.getDate())}.${pad(isoTime.getMonth()+1)}.${isoTime.getFullYear()}`
 
+  }
+  function formatBytes(bytes: number) {
+  if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   }
 
   // function to edit message
@@ -436,20 +499,42 @@ export default function ChatInterface(): React.JSX.Element {
           <div className="ms-1 truncate w-full">
             <p className="">
               <span className="font-medium">{chat.title}</span>
-              <span className="float-end text-sm">{formatDateTime(chat.lastMessage.time)}</span>
+              
+              {chat.lastMessage.time != ""
+                ? <span className="float-end text-sm">{formatDateTime(chat.lastMessage.time) }</span>
+                : <></>
+              }
             </p>
             
-            {/* {chat.lastMessage.text != "" 
-              ? <p className="w-full block">{chat.lastMessage.text}</p> 
-              : <p className="w-full block text-gray-600 underline">No messages...</p>
-            } */}
-            {chat.lastMessage.text != "" 
-              ? <p className="w-full block">{chat.lastMessage.fromMe
-                ? <span><span className="font-bold">You:</span> {chat.lastMessage.text}</span> 
-                : <span>{chat.lastMessage.text}</span> 
-                }</p> 
-              : <p className="w-full block text-gray-600 underline">No messages...</p>
-            }
+            
+            {/* MESSAGE */}
+            {/*  If message type is 'text' we check if it has text */}
+            {chat.lastMessage.type === "text" ? (
+              <p className="w-full block">
+                {chat.lastMessage.text === "" ? (
+                  <span className="text-gray-600 underline">No messages...</span>
+                ) : chat.lastMessage.fromMe ? (
+                  <span>
+                    <span className="font-bold">You:</span> {chat.lastMessage.text}
+                  </span>
+                ) : (
+                  <span>{chat.lastMessage.text}</span>
+                )}
+              </p>
+            ) : chat.lastMessage.type === "file" ? (
+              <p className="w-full block">
+                {chat.lastMessage.fromMe ? (
+                  <span className="">
+                    <span className="font-bold">You: </span>
+                    <span className="font-bold underline">File</span>
+                  </span>
+                ) : (
+                  <span className="font-bold underline">File</span>
+                )}
+              </p>
+            ) : (
+              <p className="w-full block text-gray-600 underline">No messages...</p>
+            )}
           </div>
         </button>
       ))}
@@ -493,10 +578,12 @@ export default function ChatInterface(): React.JSX.Element {
           <div className="overflow-hidden flex-1 flex flex-col">
             <div className="flex-1 overflow-auto p-4">
               <div className="space-y-4 max-w-3xl mx-auto">
-                {selectedChat.messages.map((m) => (
+                {selectedChat.messages.map((m: Message) => (
+                  
                   <div key={m.id} className={m.fromMe ? "chat chat-end" : "chat chat-start"}>
-                    
-                    <div className="chat-bubble break-words w-fit">
+                  {/* CHECK IF MESSAGE IS TEXT TYPE OR FILE */}
+                  {m.type == "text" 
+                    ? <div className="chat-bubble break-words w-fit">
                       {m.text}
                       
                       <div className="chat-header mt-1">
@@ -543,6 +630,32 @@ export default function ChatInterface(): React.JSX.Element {
 
                       </div>
                     </div>
+                    // DISPLAYS LIKE THIS IF MESSAGE FILE TYPE
+                    : <div className="chat-bubble break-words w-fit">
+                      <div>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6 inline">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                        </svg>
+                        <span className="text-blue-700 underline float-end my-auto"><a href={`/uploads/${m.file_url}`}>{m.file_name}</a></span>
+                      </div>
+                      <p className="text-sm my-1 text-end">{formatBytes(m.file_size || 0)}</p>
+                      
+                      <div className="chat-header mt-1">
+                        {m.fromMe 
+                        ? <>
+                        {/* Delete button */}
+                          <button className="btn btn-ghost btn-xs"
+                          onClick={() => {
+                            deleteMessage(m.id)
+                          }}
+                          ><span className="text-red-300">delete</span></button>
+
+                        </>
+                         : <></>}
+                        <span className={`text-xs text-gray-400 h-fit my-auto ${m.fromMe ? "ms-auto" : ""}`}>{formatDateTime(m.time)}</span>
+                      </div>
+                    </div>}  
+                    
                   </div>
                 ))}
                 <div ref={messagesEndRef} />
@@ -552,7 +665,15 @@ export default function ChatInterface(): React.JSX.Element {
             {/* Input area */}
 
             <div className="p-2 flex border-t-1 border-base-300">
-    
+                
+                <button className="btn btn-ghost me-2" onClick={() => {
+                  const modalAttachFiles = document.getElementById('attach_files') as HTMLDialogElement | null;
+                  modalAttachFiles?.showModal()
+                }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                  </svg>
+                </button>
     
               <input  
                   placeholder="Type..."
@@ -647,6 +768,30 @@ export default function ChatInterface(): React.JSX.Element {
                 }}
                 >Edit</button>
               </div>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
+
+      {/* Attach files modal */}
+      <dialog id="attach_files" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Attch files</h3>
+          <div className="my-3">
+            <input type="file" className="file-input" onChange={handleFileChange} multiple/>
+            <div className="my-3">
+              <button className="btn btn-outline btn-error"
+              onClick={() => {
+                const modalEditMessage = document.getElementById('attach_files') as HTMLDialogElement | null;
+                if (modalEditMessage) {
+                  modalEditMessage.close()
+                }
+              }}>Cancel</button>
+              <button onClick={handleUpload} className="btn btn-outline btn-success float-end">Send</button>
+            </div>
+          </div>
+          
         </div>
         <form method="dialog" className="modal-backdrop">
           <button>close</button>
