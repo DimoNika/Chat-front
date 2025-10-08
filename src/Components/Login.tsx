@@ -42,10 +42,8 @@ function Login({setPage, auth}: LoginPageProps) {
       auth()
 
     } catch (err: any) {
-      // setError(err.message);
       console.error(err);
     } finally {
-      // setLoading(false);
     }
   };
 

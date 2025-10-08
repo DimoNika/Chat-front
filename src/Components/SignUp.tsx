@@ -45,10 +45,10 @@ function SignUp({ setPage, auth }: SignUpPageProps) {
       localStorage.setItem("access_token", data.access_token);
       
     } catch (err: any) {
-      // setError(err.message);
+      
       console.error(err);
     } finally {
-      // setLoading(false);
+      
     }
   };
 

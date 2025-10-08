@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import HomePage from "./Components/HomePage"
 import Login from "./Components/Login"
 import SignUp from "./Components/SignUp"
-import Chat from "./Components/Chat"
-import ChatInterface from "./Components/ChatCopy"
+import ChatInterface from "./Components/Chat"
 import { apiFetch } from "./api"
 
 
